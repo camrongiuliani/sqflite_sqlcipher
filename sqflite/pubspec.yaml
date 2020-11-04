@@ -12,7 +12,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.tekartik.sqflite
+        package: com.davidmartos96.sqflite_sqlcipher
         pluginClass: SqflitePlugin
       ios:
         pluginClass: SqflitePlugin
