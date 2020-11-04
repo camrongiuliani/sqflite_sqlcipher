@@ -1,15 +1,17 @@
 import 'dart:async';
 
-import 'package:sqflite_sqlcipher/src/sqflite_import.dart' as impl;
-import 'package:sqflite_common/utils/utils.dart' as utils;
-import 'package:sqflite_sqlcipher/sqlite_api.dart';
-import 'package:sqflite_sqlcipher/src/factory_sql_cipher_impl.dart'
-    show databaseFactory;
-import 'package:sqflite_sqlcipher/src/sqflite_import.dart';
-import 'package:sqflite_sqlcipher/src/sqflite_sql_cipher_impl.dart';
+import 'package:sqflite/src/compat.dart';
+import 'package:sqflite/src/constant.dart';
+import 'package:sqflite/src/factory_impl.dart' show databaseFactory;
+import 'package:sqflite/src/sqflite_impl.dart';
+import 'package:sqflite/src/utils.dart' as impl;
+import 'package:sqflite/utils/utils.dart' as utils;
 
-export 'package:sqflite_sqlcipher/src/factory_sql_cipher_impl.dart'
-    show databaseFactory;
+import 'sqlite_api.dart';
+
+export 'package:sqflite/sql.dart' show ConflictAlgorithm;
+export 'package:sqflite/src/compat.dart';
+export 'package:sqflite/src/factory_impl.dart' show databaseFactory;
 
 export 'sqlite_api.dart';
 
@@ -17,13 +19,6 @@ export 'sqlite_api.dart';
 /// sqflite plugin
 ///
 class Sqflite {
-  //static MethodChannel get _channel => channel;
-
-  /// deprecated
-  @deprecated
-  static Future<String> get platformVersion =>
-      invokeMethod<String>(methodGetPlatformVersion);
-
   /// Turns on debug mode if you want to see the SQL query
   /// executed natively.
   static Future<void> setDebugModeOn([bool on = true]) async {
@@ -45,9 +40,16 @@ class Sqflite {
     return setDebugModeOn(on);
   }
 
+  /// Testing only.
+  ///
+  /// deprecated on purpose to remove from code.
   @deprecated
+  static Future<void> devSetOptions(SqfliteOptions options) async {
+    await invokeMethod<dynamic>(methodOptions, options.toMap());
+  }
 
   /// Testing only
+  @deprecated
   static Future<void> devInvokeMethod(String method,
       [dynamic arguments]) async {
     await invokeMethod<dynamic>(method, arguments);
@@ -58,7 +60,7 @@ class Sqflite {
   static int firstIntValue(List<Map<String, dynamic>> list) =>
       utils.firstIntValue(list);
 
-  /// Utility to encode a blob to allow blow query using
+  /// Utility to encode a blob to allow blob query using
   /// 'hex(blob_field) = ?', Sqlite.hex([1,2,3])
   static String hex(List<int> bytes) => utils.hex(bytes);
 
@@ -129,17 +131,15 @@ Future<Database> openDatabase(String path,
     OnDatabaseVersionChangeFn onUpgrade,
     OnDatabaseVersionChangeFn onDowngrade,
     OnDatabaseOpenFn onOpen,
-    String password,
     bool readOnly = false,
     bool singleInstance = true}) {
-  final options = SqlCipherOpenDatabaseOptions(
+  final options = OpenDatabaseOptions(
       version: version,
       onConfigure: onConfigure,
       onCreate: onCreate,
       onUpgrade: onUpgrade,
       onDowngrade: onDowngrade,
       onOpen: onOpen,
-      password: password,
       readOnly: readOnly,
       singleInstance: singleInstance);
   return databaseFactory.openDatabase(path, options: options);
@@ -148,8 +148,8 @@ Future<Database> openDatabase(String path,
 ///
 /// Open the database at a given path in read only mode
 ///
-Future<Database> openReadOnlyDatabase(String path, {String password}) =>
-    openDatabase(path, readOnly: true, password: password);
+Future<Database> openReadOnlyDatabase(String path) =>
+    openDatabase(path, readOnly: true);
 
 ///
 /// Get the default databases location.

@@ -1,24 +1,23 @@
-package com.davidmartos96.sqflite_sqlcipher;
+package com.tekartik.sqflite;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.database.Cursor;
-
-import net.sqlcipher.SQLException;
-import net.sqlcipher.database.SQLiteDatabase;
-
+import android.database.SQLException;
 import android.database.sqlite.SQLiteCantOpenDatabaseException;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.Process;
 import android.util.Log;
 
-import com.davidmartos96.sqflite_sqlcipher.dev.Debug;
-import com.davidmartos96.sqflite_sqlcipher.operation.BatchOperation;
-import com.davidmartos96.sqflite_sqlcipher.operation.ExecuteOperation;
-import com.davidmartos96.sqflite_sqlcipher.operation.MethodCallOperation;
-import com.davidmartos96.sqflite_sqlcipher.operation.Operation;
-import com.davidmartos96.sqflite_sqlcipher.operation.SqlErrorInfo;
+import com.tekartik.sqflite.dev.Debug;
+import com.tekartik.sqflite.operation.BatchOperation;
+import com.tekartik.sqflite.operation.ExecuteOperation;
+import com.tekartik.sqflite.operation.MethodCallOperation;
+import com.tekartik.sqflite.operation.Operation;
+import com.tekartik.sqflite.operation.SqlErrorInfo;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,43 +32,41 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
 
-import static com.davidmartos96.sqflite_sqlcipher.Constant.CMD_GET;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.ERROR_BAD_PARAM;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.MEMORY_DATABASE_PATH;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_BATCH;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_CLOSE_DATABASE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_DEBUG;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_DEBUG_MODE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_DELETE_DATABASE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_EXECUTE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_GET_DATABASES_PATH;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_GET_PLATFORM_VERSION;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_INSERT;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_OPEN_DATABASE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_OPTIONS;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_QUERY;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.METHOD_UPDATE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_CMD;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_ID;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_IN_TRANSACTION;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_LOG_LEVEL;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_OPERATIONS;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_PASSWORD;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_PATH;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_READ_ONLY;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_RECOVERED;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_RECOVERED_IN_TRANSACTION;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_SINGLE_INSTANCE;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_SQL;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.PARAM_SQL_ARGUMENTS;
-import static com.davidmartos96.sqflite_sqlcipher.Constant.TAG;
+import static com.tekartik.sqflite.Constant.CMD_GET;
+import static com.tekartik.sqflite.Constant.ERROR_BAD_PARAM;
+import static com.tekartik.sqflite.Constant.MEMORY_DATABASE_PATH;
+import static com.tekartik.sqflite.Constant.METHOD_BATCH;
+import static com.tekartik.sqflite.Constant.METHOD_CLOSE_DATABASE;
+import static com.tekartik.sqflite.Constant.METHOD_DEBUG;
+import static com.tekartik.sqflite.Constant.METHOD_DEBUG_MODE;
+import static com.tekartik.sqflite.Constant.METHOD_DELETE_DATABASE;
+import static com.tekartik.sqflite.Constant.METHOD_EXECUTE;
+import static com.tekartik.sqflite.Constant.METHOD_GET_DATABASES_PATH;
+import static com.tekartik.sqflite.Constant.METHOD_GET_PLATFORM_VERSION;
+import static com.tekartik.sqflite.Constant.METHOD_INSERT;
+import static com.tekartik.sqflite.Constant.METHOD_OPEN_DATABASE;
+import static com.tekartik.sqflite.Constant.METHOD_OPTIONS;
+import static com.tekartik.sqflite.Constant.METHOD_QUERY;
+import static com.tekartik.sqflite.Constant.METHOD_UPDATE;
+import static com.tekartik.sqflite.Constant.PARAM_CMD;
+import static com.tekartik.sqflite.Constant.PARAM_ID;
+import static com.tekartik.sqflite.Constant.PARAM_IN_TRANSACTION;
+import static com.tekartik.sqflite.Constant.PARAM_LOG_LEVEL;
+import static com.tekartik.sqflite.Constant.PARAM_OPERATIONS;
+import static com.tekartik.sqflite.Constant.PARAM_PATH;
+import static com.tekartik.sqflite.Constant.PARAM_READ_ONLY;
+import static com.tekartik.sqflite.Constant.PARAM_RECOVERED;
+import static com.tekartik.sqflite.Constant.PARAM_RECOVERED_IN_TRANSACTION;
+import static com.tekartik.sqflite.Constant.PARAM_SINGLE_INSTANCE;
+import static com.tekartik.sqflite.Constant.PARAM_SQL;
+import static com.tekartik.sqflite.Constant.PARAM_SQL_ARGUMENTS;
+import static com.tekartik.sqflite.Constant.TAG;
 
 /**
- * SqfliteSqlCipherPlugin Android implementation
+ * SqflitePlugin Android implementation
  */
-public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler {
+public class SqflitePlugin implements FlutterPlugin, MethodCallHandler {
 
 
     static final Map<String, Integer> _singleInstancesByPath = new HashMap<>();
@@ -91,20 +88,21 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
     static final Map<Integer, Database> databaseMap = new HashMap<>();
 
     // Needed public constructor
-    public SqfliteSqlCipherPlugin() {
+    public SqflitePlugin() {
 
     }
 
     // Testing only
-    public SqfliteSqlCipherPlugin(Context context) {
+    public SqflitePlugin(Context context) {
         this.context = context.getApplicationContext();
     }
 
     //
     // Plugin registration.
     //
-    public static void registerWith(Registrar registrar) {
-        SqfliteSqlCipherPlugin sqflitePlugin = new SqfliteSqlCipherPlugin();
+    @SuppressWarnings("deprecation")
+    public static void registerWith(io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
+        SqflitePlugin sqflitePlugin = new SqflitePlugin();
         sqflitePlugin.onAttachedToEngine(registrar.context(), registrar.messenger());
     }
 
@@ -115,7 +113,6 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
 
     private void onAttachedToEngine(Context applicationContext, BinaryMessenger messenger) {
         this.context = applicationContext;
-        SQLiteDatabase.loadLibs(applicationContext);
         methodChannel = new MethodChannel(messenger, Constant.PLUGIN_KEY);
         methodChannel.setMethodCallHandler(this);
     }
@@ -496,7 +493,7 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
                 if (queryAsMapList) {
                     Map<String, Object> map = cursorRowToMap(cursor);
                     if (LogLevel.hasSqlLevel(database.logLevel)) {
-                        Log.d(TAG, database.getThreadLogPrefix() + SqfliteSqlCipherPlugin.toString(map));
+                        Log.d(TAG, database.getThreadLogPrefix() + SqflitePlugin.toString(map));
                     }
                     results.add(map);
                 } else {
@@ -635,12 +632,6 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
         if (exception instanceof SQLiteCantOpenDatabaseException) {
             operation.error(Constant.SQLITE_ERROR, Constant.ERROR_OPEN_FAILED + " " + database.path, null);
             return;
-        } else if (exception.getMessage().toLowerCase().contains("could not open database")) {
-            operation.error(Constant.SQLITE_ERROR, Constant.ERROR_OPEN_FAILED + " " + database.path, null);
-            return;
-        } else if (exception.getMessage().toLowerCase().contains("file is not a database")) {
-            operation.error(Constant.SQLITE_ERROR, Constant.ERROR_OPEN_FAILED + " " + database.path, null);
-            return;
         } else if (exception instanceof SQLException) {
             operation.error(Constant.SQLITE_ERROR, exception.getMessage(), SqlErrorInfo.getMap(operation));
             return;
@@ -718,11 +709,9 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
     //
     // Sqflite.open
     //
-
     private void onOpenDatabaseCall(final MethodCall call, Result result) {
         final String path = call.argument(PARAM_PATH);
         final Boolean readOnly = call.argument(PARAM_READ_ONLY);
-        final String password = call.argument(PARAM_PASSWORD);
         final boolean inMemory = isInMemoryPath(path);
 
         final boolean singleInstance = !Boolean.FALSE.equals(call.argument(PARAM_SINGLE_INSTANCE)) && !inMemory;
@@ -760,22 +749,22 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
         // Generate new id
         int newDatabaseId;
         synchronized (databaseMapLocker) {
-            newDatabaseId = ++SqfliteSqlCipherPlugin.this.databaseId;
+            newDatabaseId = ++SqflitePlugin.this.databaseId;
         }
         final int databaseId = newDatabaseId;
 
-        final Database database = new Database(path, password, databaseId, singleInstance, logLevel);
+        final Database database = new Database(path, databaseId, singleInstance, logLevel);
 
         final BgResult bgResult = new BgResult(result);
 
         synchronized (databaseMapLocker) {
             // Create handler if necessary
             if (handler == null) {
-                handlerThread = new HandlerThread("Sqflite", SqfliteSqlCipherPlugin.THREAD_PRIORITY);
+                handlerThread = new HandlerThread("Sqflite", SqflitePlugin.THREAD_PRIORITY);
                 handlerThread.start();
                 handler = new Handler(handlerThread.getLooper());
                 if (LogLevel.hasSqlLevel(database.logLevel)) {
-                    Log.d(TAG, database.getThreadLogPrefix() + "starting thread" + handlerThread + " priority " + SqfliteSqlCipherPlugin.THREAD_PRIORITY);
+                    Log.d(TAG, database.getThreadLogPrefix() + "starting thread" + handlerThread + " priority " + SqflitePlugin.THREAD_PRIORITY);
                 }
             }
             if (LogLevel.hasSqlLevel(database.logLevel)) {
@@ -1033,7 +1022,7 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
         }
         Integer logLevel = LogLevel.getLogLevel(call);
         if (logLevel != null) {
-            SqfliteSqlCipherPlugin.logLevel = logLevel;
+            SqflitePlugin.logLevel = logLevel;
         }
         result.success(null);
     }
@@ -1052,7 +1041,7 @@ public class SqfliteSqlCipherPlugin implements FlutterPlugin, MethodCallHandler 
 
     private class BgResult implements Result {
         // Caller handler
-        final Handler handler = new Handler();
+        final Handler handler = new Handler(Looper.getMainLooper());
         private final Result result;
 
         private BgResult(Result result) {

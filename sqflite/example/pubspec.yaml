@@ -1,10 +1,10 @@
-name: sqflite_sqlcipher_example
+name: sqflite_example
 description: Demonstrates how to use the sqflite plugin.
 publish_to: none
-version: '0.2.0'
+version: '0.3.0'
 
 environment:
-  sdk: ">=2.7.0-dev <3.0.0"
+  sdk: ">=2.10.0-0 <3.0.0"
   flutter: ">=1.12.13+hotfix.6 <2.0.0"
 
 dependencies:
@@ -12,19 +12,16 @@ dependencies:
   collection: any
   flutter:
     sdk: flutter
-  sqflite_sqlcipher:
-    path: ../
-  synchronized: ^2.2.0
-
+  sqflite:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_driver:
     sdk: flutter
-  e2e: ^0.2.1
+  integration_test:
   test:
-  matcher: '>=0.12.3 < 2.0.0'
+  matcher: '>=0.12.3 <2.0.0'
   pedantic: '>=1.4.0 <3.0.0'
   process_run: '>=0.10.0'
 
@@ -46,10 +43,8 @@ flutter:
   #  - images/a_dot_ham.jpeg
   assets:
     - assets/example.db
-    - assets/example_pass_1234.db
-    - assets/sqlcipher-3.0-testkey.db
     - assets/issue_64.db
 
 dependency_overrides:
-  sqflite_sqlcipher:
+  sqflite:
     path: ../

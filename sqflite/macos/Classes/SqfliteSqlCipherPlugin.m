@@ -1,16 +1,11 @@
-#import "SqfliteSqlCipherPlugin.h"
+#import "SqflitePlugin.h"
 
-// Include files differs on ios and MacOS
-#if TARGET_OS_IPHONE
 #import <fmdb/FMDB.h>
-#else
-#import <FMDB/FMDB.h>
-#endif
 
 #import <sqlite3.h>
 #import "SqfliteOperation.h"
 
-static NSString *const _channelName = @"com.davidmartos96.sqflite_sqlcipher";
+static NSString *const _channelName = @"com.tekartik.sqflite";
 static NSString *const _inMemoryPath = @":memory:";
 
 static NSString *const _methodGetPlatformVersion = @"getPlatformVersion";
@@ -38,7 +33,6 @@ static NSString *const _paramRecoveredInTransaction = @"recoveredInTransaction";
 static NSString *const _paramOperations = @"operations";
 // For each batch operation
 static NSString *const _paramPath = @"path";
-static NSString *const _paramPassword = @"password";
 static NSString *const _paramId = @"id";
 static NSString *const _paramTable = @"table";
 static NSString *const _paramValues = @"values";
@@ -83,7 +77,7 @@ NSString *const SqfliteParamErrorData = @"data";
 
 @end
 
-@interface SqfliteSqlCipherPlugin ()
+@interface SqflitePlugin ()
 
 @property (atomic, retain) NSMutableDictionary<NSNumber*, SqfliteDatabase*>* databaseMap;
 @property (atomic, retain) NSMutableDictionary<NSString*, SqfliteDatabase*>* singleInstanceDatabaseMap;
@@ -98,7 +92,7 @@ NSString *const SqfliteParamErrorData = @"data";
 
 @end
 
-@implementation SqfliteSqlCipherPlugin
+@implementation SqflitePlugin
 
 @synthesize databaseMap;
 @synthesize mapLock;
@@ -133,7 +127,7 @@ static NSInteger _databaseOpenCount = 0;
     FlutterMethodChannel* channel = [FlutterMethodChannel
                                      methodChannelWithName:_channelName
                                      binaryMessenger:[registrar messenger]];
-    SqfliteSqlCipherPlugin* instance = [[SqfliteSqlCipherPlugin alloc] init];
+    SqflitePlugin* instance = [[SqflitePlugin alloc] init];
     [registrar addMethodCallDelegate:instance channel:channel];
 }
 
@@ -160,37 +154,29 @@ static NSInteger _databaseOpenCount = 0;
     return database;
 }
 
-- (BOOL)handleError:(FMDatabase*)db result:(FlutterResult)result {
+- (void)handleError:(FMDatabase*)db result:(FlutterResult)result {
     // handle error
-    if ([db hadError]) {
-        result([FlutterError errorWithCode:_sqliteErrorCode
-                                   message:[NSString stringWithFormat:@"%@", [db lastError]]
-                                   details:nil]);
-        return YES;
-    }
-    return NO;
+    result([FlutterError errorWithCode:_sqliteErrorCode
+                               message:[NSString stringWithFormat:@"%@", [db lastError]]
+                               details:nil]);
 }
 
-- (BOOL)handleError:(FMDatabase*)db operation:(SqfliteOperation*)operation {
-    // handle error
-    if ([db hadError]) {
-        NSMutableDictionary* details = nil;
-        NSString* sql = [operation getSql];
-        if (sql != nil) {
-            details = [NSMutableDictionary new];
-            [details setObject:sql forKey:SqfliteParamSql];
-            NSArray* sqlArguments = [operation getSqlArguments];
-            if (sqlArguments != nil) {
-                [details setObject:sqlArguments forKey:SqfliteParamSqlArguments];
-            }
+- (void)handleError:(FMDatabase*)db operation:(SqfliteOperation*)operation {
+    NSMutableDictionary* details = nil;
+    NSString* sql = [operation getSql];
+    if (sql != nil) {
+        details = [NSMutableDictionary new];
+        [details setObject:sql forKey:SqfliteParamSql];
+        NSArray* sqlArguments = [operation getSqlArguments];
+        if (sqlArguments != nil) {
+            [details setObject:sqlArguments forKey:SqfliteParamSqlArguments];
         }
-        
-        [operation error:([FlutterError errorWithCode:_sqliteErrorCode
-                                              message:[NSString stringWithFormat:@"%@", [db lastError]]
-                                              details:details])];
-        return YES;
     }
-    return NO;
+    
+    [operation error:([FlutterError errorWithCode:_sqliteErrorCode
+                                          message:[NSString stringWithFormat:@"%@", [db lastError]]
+                                          details:details])];
+    
 }
 
 + (NSObject*)toSqlValue:(NSObject*)value {
@@ -201,7 +187,7 @@ static NSInteger _databaseOpenCount = 0;
         return nil;
     } else if ([value isKindOfClass:[FlutterStandardTypedData class]]) {
         FlutterStandardTypedData* typedData = (FlutterStandardTypedData*)value;
-        return [typedData data];
+        return typedData.data;
     } else if ([value isKindOfClass:[NSArray class]]) {
         // Assume array of number
         // slow...to optimize
@@ -236,9 +222,9 @@ static NSInteger _databaseOpenCount = 0;
 
 + (NSArray*)toSqlArguments:(NSArray*)rawArguments {
     NSMutableArray* array = [NSMutableArray new];
-    if (![SqfliteSqlCipherPlugin arrayIsEmpy:rawArguments]) {
+    if (![SqflitePlugin arrayIsEmpy:rawArguments]) {
         for (int i = 0; i < [rawArguments count]; i++) {
-            [array addObject:[SqfliteSqlCipherPlugin toSqlValue:[rawArguments objectAtIndex:i]]];
+            [array addObject:[SqflitePlugin toSqlValue:[rawArguments objectAtIndex:i]]];
         }
     }
     return array;
@@ -247,7 +233,7 @@ static NSInteger _databaseOpenCount = 0;
 + (NSDictionary*)fromSqlDictionary:(NSDictionary*)sqlDictionary {
     NSMutableDictionary* dictionary = [NSMutableDictionary new];
     [sqlDictionary enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull value, BOOL * _Nonnull stop) {
-        [dictionary setObject:[SqfliteSqlCipherPlugin fromSqlValue:value] forKey:key];
+        [dictionary setObject:[SqflitePlugin fromSqlValue:value] forKey:key];
     }];
     return dictionary;
 }
@@ -255,20 +241,22 @@ static NSInteger _databaseOpenCount = 0;
 - (bool)executeOrError:(SqfliteDatabase*)database fmdb:(FMDatabase*)db call:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString* sql = call.arguments[SqfliteParamSql];
     NSArray* arguments = call.arguments[SqfliteParamSqlArguments];
-    NSArray* sqlArguments = [SqfliteSqlCipherPlugin toSqlArguments:arguments];
-    BOOL argumentsEmpty = [SqfliteSqlCipherPlugin arrayIsEmpy:arguments];
+    NSArray* sqlArguments = [SqflitePlugin toSqlArguments:arguments];
+    BOOL argumentsEmpty = [SqflitePlugin arrayIsEmpy:arguments];
     if (hasSqlLogLevel(database.logLevel)) {
         NSLog(@"%@ %@", sql, argumentsEmpty ? @"" : sqlArguments);
     }
     
+    BOOL success;
     if (!argumentsEmpty) {
-        [db executeUpdate: sql withArgumentsInArray: sqlArguments];
+        success = [db executeUpdate: sql withArgumentsInArray: sqlArguments];
     } else {
-        [db executeUpdate: sql];
+        success = [db executeUpdate: sql];
     }
     
     // handle error
-    if ([self handleError:db result:result]) {
+    if (!success) {
+        [self handleError:db result:result];
         return false;
     }
     
@@ -279,15 +267,16 @@ static NSInteger _databaseOpenCount = 0;
     NSString* sql = [operation getSql];
     NSArray* sqlArguments = [operation getSqlArguments];
     NSNumber* inTransaction = [operation getInTransactionArgument];
-    BOOL argumentsEmpty = [SqfliteSqlCipherPlugin arrayIsEmpy:sqlArguments];
+    BOOL argumentsEmpty = [SqflitePlugin arrayIsEmpy:sqlArguments];
     if (hasSqlLogLevel(database.logLevel)) {
         NSLog(@"%@ %@", sql, argumentsEmpty ? @"" : sqlArguments);
     }
     
+    BOOL success;
     if (!argumentsEmpty) {
-        [db executeUpdate: sql withArgumentsInArray: sqlArguments];
+        success = [db executeUpdate: sql withArgumentsInArray: sqlArguments];
     } else {
-        [db executeUpdate: sql];
+        success = [db executeUpdate: sql];
     }
     
     // If wanted, we leave the transaction even if it fails
@@ -298,7 +287,8 @@ static NSInteger _databaseOpenCount = 0;
     }
     
     // handle error
-    if ([self handleError:db operation:operation]) {
+    if (!success) {
+        [self handleError:db operation:operation];
         return false;
     }
     
@@ -312,13 +302,52 @@ static NSInteger _databaseOpenCount = 0;
     return true;
 }
 
+// Rewrite to handle empty bloc reported as null
+// refer to original FMResultSet.objectForColumnIndex, removed
+// when fixed in FMDB
+// See https://github.com/ccgus/fmdb/issues/350 for information
+- (id)rsObjectForColumn:(FMResultSet*)rs index:(int)columnIdx {
+    FMStatement* _statement = [rs statement];
+    if (columnIdx < 0 || columnIdx >= sqlite3_column_count([_statement statement])) {
+        return nil;
+    }
+    
+    int columnType = sqlite3_column_type([_statement statement], columnIdx);
+    
+    id returnValue = nil;
+    
+    if (columnType == SQLITE_INTEGER) {
+        returnValue = [NSNumber numberWithLongLong:[rs longLongIntForColumnIndex:columnIdx]];
+    }
+    else if (columnType == SQLITE_FLOAT) {
+        returnValue = [NSNumber numberWithDouble:[rs doubleForColumnIndex:columnIdx]];
+    }
+    else if (columnType == SQLITE_BLOB) {
+        returnValue = [rs dataForColumnIndex:columnIdx];
+        // Workaround, empty blob are reported as nil
+        if (returnValue == nil) {
+            return [NSData new];
+        }
+    }
+    else {
+        //default to a string for everything else
+        returnValue = [rs stringForColumnIndex:columnIdx];
+    }
+    
+    if (returnValue == nil) {
+        returnValue = [NSNull null];
+    }
+    
+    return returnValue;
+}
+
 //
 // query
 //
 - (bool)query:(SqfliteDatabase*)database fmdb:(FMDatabase*)db operation:(SqfliteOperation*)operation {
     NSString* sql = [operation getSql];
     NSArray* sqlArguments = [operation getSqlArguments];
-    BOOL argumentsEmpty = [SqfliteSqlCipherPlugin arrayIsEmpy:sqlArguments];
+    BOOL argumentsEmpty = [SqflitePlugin arrayIsEmpy:sqlArguments];
     if (hasSqlLogLevel(database.logLevel)) {
         NSLog(@"%@ %@", sql, argumentsEmpty ? @"" : sqlArguments);
     }
@@ -331,7 +360,8 @@ static NSInteger _databaseOpenCount = 0;
     }
     
     // handle error
-    if ([self handleError:db operation:operation]) {
+    if ([db hadError]) {
+        [self handleError:db operation:operation];
         return false;
     }
     
@@ -341,7 +371,7 @@ static NSInteger _databaseOpenCount = 0;
     if (queryAsMapList) {
         NSMutableArray* results = [NSMutableArray new];
         while ([rs next]) {
-            [results addObject:[SqfliteSqlCipherPlugin fromSqlDictionary:[rs resultDictionary]]];
+            [results addObject:[SqflitePlugin fromSqlDictionary:[rs resultDictionary]]];
         }
         [operation success:results];
     } else {
@@ -363,7 +393,7 @@ static NSInteger _databaseOpenCount = 0;
             }
             NSMutableArray* row = [NSMutableArray new];
             for (int i = 0; i < columnCount; i++) {
-                [row addObject:[SqfliteSqlCipherPlugin fromSqlValue:[rs objectForColumnIndex:i]]];
+                [row addObject:[SqflitePlugin fromSqlValue:[self rsObjectForColumn:rs index:i]]];
             }
             [rows addObject:row];
         }
@@ -596,11 +626,10 @@ static NSInteger _databaseOpenCount = 0;
 //
 - (void)handleOpenDatabaseCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     NSString* path = call.arguments[_paramPath];
-    NSString* password = call.arguments[_paramPassword];
     NSNumber* readOnlyValue = call.arguments[_paramReadOnly];
     bool readOnly = [readOnlyValue boolValue] == true;
     NSNumber* singleInstanceValue = call.arguments[_paramSingleInstance];
-    bool inMemoryPath = [SqfliteSqlCipherPlugin isInMemoryPath:path];
+    bool inMemoryPath = [SqflitePlugin isInMemoryPath:path];
     // A single instance must be a regular database
     bool singleInstance = [singleInstanceValue boolValue] != false && !inMemoryPath;
     
@@ -619,7 +648,7 @@ static NSInteger _databaseOpenCount = 0;
                 if (_log) {
                     NSLog(@"re-opened %@singleInstance %@ id %@", database.inTransaction ? @"(in transaction) ": @"", path, database.databaseId);
                 }
-                result([SqfliteSqlCipherPlugin makeOpenResult:database.databaseId recovered:true recoveredInTransaction:database.inTransaction]);
+                result([SqflitePlugin makeOpenResult:database.databaseId recovered:true recoveredInTransaction:database.inTransaction]);
                 return;
             }
         }
@@ -647,14 +676,14 @@ static NSInteger _databaseOpenCount = 0;
                                    details:nil]);
         return;
     }
-
-    [queue inDatabase:^(FMDatabase *database) {
-        if (password == nil) {
-            [database setKey:@""];
-        } else {
-            [database setKey:password];
-        }
-    }];
+    
+    // First call will be to prepare the database.
+    // We turn on extended result code, allowing failure
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [queue inDatabase:^(FMDatabase *db) {
+            sqlite3_extended_result_codes(db.sqliteHandle, 1);
+        }];
+    });
     
     NSNumber* databaseId;
     @synchronized (self.mapLock) {
@@ -676,10 +705,9 @@ static NSInteger _databaseOpenCount = 0;
                 NSLog(@"Creating operation queue");
             }
         }
-        
     }
     
-    result([SqfliteSqlCipherPlugin makeOpenResult: databaseId recovered:false recoveredInTransaction:false]);
+    result([SqflitePlugin makeOpenResult: databaseId recovered:false recoveredInTransaction:false]);
 }
 
 //

@@ -1,15 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
-import 'package:sqflite_sqlcipher_example/batch_test_page.dart';
-import 'package:sqflite_sqlcipher_example/deprecated_test_page.dart';
-import 'package:sqflite_sqlcipher_example/exception_test_page.dart';
-import 'package:sqflite_sqlcipher_example/exp_test_page.dart';
-import 'package:sqflite_sqlcipher_example/manual_test_page.dart';
-import 'package:sqflite_sqlcipher_example/sqlcipher_test_page.dart';
-import 'package:sqflite_sqlcipher_example/src/dev_utils.dart';
+import 'package:sqflite_example/batch_test_page.dart';
+import 'package:sqflite_example/deprecated_test_page.dart';
+import 'package:sqflite_example/exception_test_page.dart';
+import 'package:sqflite_example/exp_test_page.dart';
+import 'package:sqflite_example/manual_test_page.dart';
+import 'package:sqflite_example/src/dev_utils.dart';
 
 import 'model/main_item.dart';
 import 'open_test_page.dart';
@@ -30,9 +27,6 @@ class MyApp extends StatefulWidget {
   @override
   _MyAppState createState() => _MyAppState();
 }
-
-/// SqlCipher test page
-const String testSqlCipherRoute = "/test/sqlcipher";
 
 /// Simple test page.
 const String testRawRoute = '/test/simple';
@@ -67,7 +61,6 @@ const String testDeprecatedRoute = '/test/deprecated';
 class _MyAppState extends State<MyApp> {
   var routes = <String, WidgetBuilder>{
     '/test': (BuildContext context) => MyHomePage(),
-    testSqlCipherRoute: (BuildContext context) => SqlCipherTestPage(),
     testRawRoute: (BuildContext context) => RawTestPage(),
     testOpenRoute: (BuildContext context) => OpenTestPage(),
     testSlowRoute: (BuildContext context) => SlowTestPage(),
@@ -105,12 +98,9 @@ class _MyAppState extends State<MyApp> {
 class MyHomePage extends StatefulWidget {
   /// App home menu page.
   MyHomePage({Key key, this.title}) : super(key: key) {
-    _items.add(MainItem(
-        "Sqlcipher tests", "Simple tests with an encrypted database",
-        route: testSqlCipherRoute));
     _items.add(
-        MainItem("Raw tests", "Raw SQLite operations", route: testRawRoute));
-    _items.add(MainItem("Open tests", "Open onCreate/onUpgrade/onDowngrade",
+        MainItem('Raw tests', 'Raw SQLite operations', route: testRawRoute));
+    _items.add(MainItem('Open tests', 'Open onCreate/onUpgrade/onDowngrade',
         route: testOpenRoute));
     _items
         .add(MainItem('Type tests', 'Test value types', route: testTypeRoute));
@@ -155,105 +145,36 @@ set debugAutoStartRouteName(String routeName) =>
     _debugAutoStartRouteName = routeName;
 
 class _MyHomePageState extends State<MyHomePage> {
-  String _platformVersion = 'Unknown';
-
   int get _itemCount => widget._items.length;
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
-  }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      // ignore: deprecated_member_use
-      platformVersion = await Sqflite.platformVersion;
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version';
-    }
+    Future.delayed(Duration.zero).then((_) async {
+      if (mounted) {
+        // Use it to auto start a test page
+        if (debugAutoStartRouteName != null) {
+          // only once
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
+          // await Navigator.of(context).pushNamed(testExpRoute);
+          // await Navigator.of(context).pushNamed(testRawRoute);
+          var future = Navigator.of(context).pushNamed(debugAutoStartRouteName);
+          // ignore: deprecated_member_use_from_same_package
+          debugAutoStartRouteName = null;
+          await future;
+          // await Navigator.of(context).pushNamed(testExceptionRoute);
+        }
+      }
     });
-
-    print('running on: ' + _platformVersion);
-
-    // Use it to auto start a test page
-    if (debugAutoStartRouteName != null) {
-      // only once
-
-      // await Navigator.of(context).pushNamed(testExpRoute);
-      // await Navigator.of(context).pushNamed(testRawRoute);
-      var future = Navigator.of(context).pushNamed(debugAutoStartRouteName);
-      // ignore: deprecated_member_use_from_same_package
-      debugAutoStartRouteName = null;
-      await future;
-      // await Navigator.of(context).pushNamed(testExceptionRoute);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Center(
-            child: Text('Sqflite demo', textAlign: TextAlign.center),
-          ),
-          actions: <Widget>[
-            IconButton(
-              icon: Icon(Icons.info),
-              onPressed: () async {
-                final db = await openDatabase(inMemoryDatabasePath);
-                final versionRows = await db.rawQuery('PRAGMA cipher_version');
-                final version =
-                    versionRows.map((e) => e.values.first).join('\n');
-
-                final compileOptionsRows =
-                    await db.rawQuery('PRAGMA compile_options');
-                final compileOptions =
-                    compileOptionsRows.map((e) => e.values.first).join('\n');
-
-                await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text('Info'),
-                    content: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          'SQLcipher version:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          version,
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          'Compile options:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(compileOptions),
-                      ],
-                    ),
-                  ),
-                );
-
-                await db.close();
-              },
-            ),
-          ],
+          title:
+              Center(child: Text('Sqflite demo', textAlign: TextAlign.center)),
         ),
         body:
             ListView.builder(itemBuilder: _itemBuilder, itemCount: _itemCount));

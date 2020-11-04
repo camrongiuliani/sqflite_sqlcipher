@@ -15,17 +15,28 @@ flutter test --no-pub --coverage
 
 ''');
 
+  try {
+    await run('dart test/no_flutter_main.dart', verbose: true);
+  } catch (e) {
+    stdout.writeln('error $e running test/no_flutter_main.dart');
+  }
+
   // CODECOV_TOKEN must be defined on travis
-  final codeCovToken = userEnvironment['CODECOV_TOKEN'];
+  final codeCovToken = userEnvironment['SQFLITE_CODECOV_TOKEN'];
   final dartVersion = userEnvironment['TRAVIS_DART_VERSION'];
 
   if (dartVersion == 'stable') {
     if (codeCovToken != null) {
-      final dir = await Directory.systemTemp.createTemp('sqflite');
-      final bashFilePath = join(dir.path, 'codecov.bash');
-      await File(bashFilePath)
-          .writeAsString(await IOClient().read('https://codecov.io/bash'));
-      await shell.run('bash $bashFilePath');
+      String bashFilePath;
+      try {
+        final dir = await Directory.systemTemp.createTemp('sqflite');
+        bashFilePath = join(dir.path, 'codecov.bash');
+        await File(bashFilePath)
+            .writeAsString(await IOClient().read('https://codecov.io/bash'));
+        await shell.run('bash $bashFilePath');
+      } catch (e) {
+        stdout.writeln('error $e running $bashFilePath');
+      }
     } else {
       stdout.writeln(
           'CODECOV_TOKEN not defined. Not publishing coverage information');
