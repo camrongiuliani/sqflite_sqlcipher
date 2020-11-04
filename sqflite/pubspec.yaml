@@ -1,4 +1,4 @@
-name: sqflite
+name: sqflite_sqlcipher
 homepage: https://github.com/tekartik/sqflite/tree/master/sqflite
 description: Flutter plugin for SQLite, a self-contained, high-reliability,
   embedded, SQL database engine.
